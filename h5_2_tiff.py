@@ -8,12 +8,8 @@ import os, sys
 #タイル番号、画素の位置に対応する緯度経度のメッシュを返す関数
 #4800x4800ピクセルすべての緯度経度を求めても遅い＆gdal_translateでエラーになるので100ピクセル毎に間引き
 #四隅が欲しいのでgcpの配列の大きさは縦横+1してある
-def get_geomesh(filename):
-        #タイル縦方向の画素数
-        col_tile=4800
-        #タイル横方向の画素数
-        lin_tile=4800
-       
+def get_geomesh(filename,lin_tile,col_tile):
+
         #グラニュールIDからタイルのIDを取得する
         v_tile=int(input_fine_name[21:23])
         h_tile=int(input_fine_name[23:25])
@@ -30,7 +26,6 @@ def get_geomesh(filename):
         d=180.0/lin_tile/v_tile_num
 
    		#gdal_translateに与えるGCPのリスト
-		#[x,y,z,経度,緯度]の順番で入れる
         gcp_list=[]
 		
         for lin in range(0,lin_tile+1,50):
@@ -44,23 +39,34 @@ def get_geomesh(filename):
                 lat=90.0-(lin_total+0.5)*d
                 NP_i=NP_0*math.cos(math.radians(lat))
                 lon=360.0*(col_total+0.5-NP_0/2)/NP_i
-                gcp=gdal.GCP(round(lon,6),round(lat,6),0,col,lin)
+                gcp=gdal.GCP(round(lon,6),round(lat,6),0,col+0.5,lin+0.5)
                 gcp_list.append(gcp)
 
         return gcp_list
  
 if __name__ == '__main__':
 
-	input_file_path="../"
-	input_fine_name="GC1SG1_20200701D01D_T0520_L2SG_VGI_Q_2000.h5"
-	band_name='NDVI'
-	
-	output_file_path="./"
-	output_filename="tmp.tif"
-	output_file=output_file_path+output_filename
+########
+#入力するファイルの情報
+########
+#ファイルパス
+	input_file_path="../madagascar/"
+#ファイル名
+	input_fine_name="GC1SG1_20200601D01M_T1022_L2SG_RV04Q_2000.h5"
+#バンド名 しきさいのユーザーガイドから調べること
+	band_name='Rs_VN04_AVE'
 
+
+########
+#出力するファイルの情報
+########
+#ファイルパス	
+	output_file_path="./"
+#ファイル名
+	output_filename=""
 
 	#ファイルを開く
+	output_file=output_file_path+output_filename
 	input_file=input_file_path+input_fine_name
 	hdf_file = h5py.File(input_file, 'r')
 	print(hdf_file['Image_data'][band_name])
@@ -75,19 +81,24 @@ if __name__ == '__main__':
 	Slope=hdf_file['Image_data'][band_name].attrs['Slope']
 	Offset=hdf_file['Image_data'][band_name].attrs['Offset']
 	Max_DN=hdf_file['Image_data'][band_name].attrs['Maximum_valid_DN']
+	Min_DN=hdf_file['Image_data'][band_name].attrs['Minimum_valid_DN']
 	
 	#型変換とエラー値をnanに変換する
 	Image_var=np.array(Image_var,dtype='uint16')
 	Image_var=np.where(Image_var>Max_DN,np.nan,Image_var)
 
+	#行数
+	lin_size=Image_var.shape[0]
+	#列数
+	col_size=Image_var.shape[1]
 
 	#GCPのリストをつくる
-	gcp_list=get_geomesh(input_fine_name)
+	gcp_list=get_geomesh(input_fine_name,lin_size,col_size)
 
 	#出力
 	dtype = gdal.GDT_UInt16 #others: gdal.GDT_Byte, ...
 	band=1
-	output = gdal.GetDriverByName('GTiff').Create(output_file,4800,4800,band,dtype) # 空の出力ファイル
+	output = gdal.GetDriverByName('GTiff').Create(output_file,lin_size,col_size,band,dtype) # 空の出力ファイル
 	output.GetRasterBand(1).WriteArray(Image_var)
 	wkt = output.GetProjection()
 	output.SetGCPs(gcp_list,wkt)
