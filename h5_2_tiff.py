@@ -1,21 +1,13 @@
 # coding:utf-8
 import numpy as np
+import gdal, ogr, os, osr
 import h5py
 import math
-#from mpl_toolkits.basemap import Basemap
 import os, sys
-import tifffile
-#from skimage import io
-
-#自作の四捨五入関数
-def my_round_func(input_var):
-	tmp=int(input_var*10)
-	if(tmp%10<5):
-		return int(input_var)
-	else:
-		return int(input_var)+int(1)
 
 #タイル番号、画素の位置に対応する緯度経度のメッシュを返す関数
+#4800x4800ピクセルすべての緯度経度を求めても遅い＆gdal_translateでエラーになるので100ピクセル毎に間引き
+#四隅が欲しいのでgcpの配列の大きさは縦横+1してある
 def get_geomesh(filename):
         #タイル縦方向の画素数
         col_tile=4800
@@ -34,92 +26,74 @@ def get_geomesh(filename):
         NL_0=86400
         #赤道における東西方向の総画素数
         NP_0=172800
-
+		#タイルでのメッシュの細かさ
         d=180.0/lin_tile/v_tile_num
 
-        #nanで初期化
-        #latlon_mesh[col_tile,lin_tile,0]=lat
-        #latlon_mesh[col_tile,lin_tile,1]=lon
-        #とする
-        latlon_mesh=np.empty((col_tile+1,lin_tile+1,2))
-        for lin in range(0,lin_tile+1,1):
-            for col in range(0,col_tile+1,1):
-
+   		#gdal_translateに与えるGCPのリスト
+		#[x,y,z,経度,緯度]の順番で入れる
+        gcp_list=[]
+		
+        for lin in range(0,lin_tile+1,50):
+            for col in range(0,col_tile+1,50):
+                if(lin==lin_tile):
+                    lin=lin-1
+                if(col==col_tile):
+                    col=col-1
                 lin_total=lin+v_tile*lin_tile
                 col_total=col+h_tile*col_tile
-#                lat=90.0-(lin_total+0.5)*d
-                lat=90.0-(lin_total)*d
-#                NP_i=round(NP_0*math.cos(math.radians(lat)))
+                lat=90.0-(lin_total+0.5)*d
                 NP_i=NP_0*math.cos(math.radians(lat))
-#                lon=360.0/NP_i*(col_total-NP_0/2+0.5)
-                lon=360.0*(col_total-NP_0/2)/NP_i
-                latlon_mesh[lin,col,0]=round(lat,6)
-                latlon_mesh[lin,col,1]=round(lon,6)
+                lon=360.0*(col_total+0.5-NP_0/2)/NP_i
+                gcp=gdal.GCP(round(lon,6),round(lat,6),0,col,lin)
+                gcp_list.append(gcp)
 
-        return latlon_mesh
+        return gcp_list
  
 if __name__ == '__main__':
 
-    input_file_path="./"
-    input_fine_name="GC1SG1_20200701D01D_T0520_L2SG_VGI_Q_2000.h5"
-    input_file=input_file_path+input_fine_name
-    #ファイルを開く
-    hdf_file = h5py.File(input_file, 'r')
+	input_file_path="../"
+	input_fine_name="GC1SG1_20200701D01D_T0520_L2SG_VGI_Q_2000.h5"
+	band_name='NDVI'
+	
+	output_file_path="./"
+	output_filename="tmp.tif"
+	output_file=output_file_path+output_filename
 
-    band_name='NDVI'
-    print(hdf_file['Geometry_data'].attrs['Upper_left_latitude'],\
-			hdf_file['Geometry_data'].attrs['Upper_left_longitude'])
-    print(hdf_file['Geometry_data'].attrs['Upper_right_latitude'],\
-			hdf_file['Geometry_data'].attrs['Upper_right_longitude'])
-    print(hdf_file['Geometry_data'].attrs['Lower_left_latitude'],\
-			hdf_file['Geometry_data'].attrs['Lower_left_longitude'])
-    print(hdf_file['Geometry_data'].attrs['Lower_right_latitude'],\
-			hdf_file['Geometry_data'].attrs['Lower_right_longitude'])
 
-    print(hdf_file['Image_data'][band_name])
-#    print(hdf_file['Image_data'][band_name].attrs['Slope'])
-#    print(hdf_file['Image_data'][band_name].attrs['Offset'])
-#    print(hdf_file['Image_data'][band_name].attrs['Minimum_valid_DN'])
-#    print(hdf_file['Image_data'][band_name].attrs['Maximum_valid_DN'])
-#    print(hdf_file['Image_data'][band_name].attrs['Error_DN'])
-#    #取り出したいところを取り出す。
-#    #L2のHDF5ファイルのImage_data以下にデータが入っている。
-#    #複数のデータがあるらしいから、欲しいもんだけを取り出す。
-#    #左上がデータの最初。左下からではないことに注意
-#    Image_var=hdf_file['Image_data'][band_name]
-#    Slope=hdf_file['Image_data'][band_name].attrs['Slope']
-#    Offset=hdf_file['Image_data'][band_name].attrs['Offset']
-#    Error_DN=hdf_file['Image_data'][band_name].attrs['Error_DN']
-##    #型変換
-#    Image_var=np.array(Image_var,dtype='uint16')
-#    Image_var=np.where(Image_var==Error_DN,np.nan,Image_var)
-#
-#    #陸域反射率を求める
-#    Rt=Slope*Image_var+Offset
-#
-#    #開けたら閉める
-#    hdf_file.close()
-#
-#    #タイル横方向の画素数
-#    lin_tile=4800
-#    #タイル縦方向の画素数
-#    col_tile=4800
-#
-#    output_file_path="./"
-#    output_filename=band_name+"_tmp.tif"
-#    output_file=output_file_path+output_filename
-#    tifffile.imsave(output_file,Rt)
-#
-#    #緯度経度情報のメモ書きを残す
-#    memo="gcp_memo.txt"
-#
-    latlon_mesh=get_geomesh(input_fine_name)
-    print(latlon_mesh[0][0],latlon_mesh[0][-1])
-    print(latlon_mesh[-1][0],latlon_mesh[-1][-1])
-#    f=open(input_fine_name[0:-3]+memo,'w')
-#    for i in range(0,4800,200):
-#        for j in range(0,4800,200):
-#            f.write("-gcp "+str(j)+" "+str(i)+" "+str(latlon_mesh[i,j][1])+" "+str(latlon_mesh[i,j][0])+"\n")
+	#ファイルを開く
+	input_file=input_file_path+input_fine_name
+	hdf_file = h5py.File(input_file, 'r')
+	print(hdf_file['Image_data'][band_name])
+	print(hdf_file['Image_data'][band_name].attrs['Slope'])
+	print(hdf_file['Image_data'][band_name].attrs['Offset'])
+	print(hdf_file['Image_data'][band_name].attrs['Minimum_valid_DN'])
+	print(hdf_file['Image_data'][band_name].attrs['Maximum_valid_DN'])
+	print(hdf_file['Image_data'][band_name].attrs['Error_DN'])
+	
+	#L2のHDF5ファイルのImage_data以下にデータが入っている。
+	Image_var=hdf_file['Image_data'][band_name]
+	Slope=hdf_file['Image_data'][band_name].attrs['Slope']
+	Offset=hdf_file['Image_data'][band_name].attrs['Offset']
+	Max_DN=hdf_file['Image_data'][band_name].attrs['Maximum_valid_DN']
+	
+	#型変換とエラー値をnanに変換する
+	Image_var=np.array(Image_var,dtype='uint16')
+	Image_var=np.where(Image_var>Max_DN,np.nan,Image_var)
 
-#    f.close()
-    hdf_file.close()
+
+	#GCPのリストをつくる
+	gcp_list=get_geomesh(input_fine_name)
+
+	#出力
+	dtype = gdal.GDT_UInt16 #others: gdal.GDT_Byte, ...
+	band=1
+	output = gdal.GetDriverByName('GTiff').Create(output_file,4800,4800,band,dtype) # 空の出力ファイル
+	output.GetRasterBand(1).WriteArray(Image_var)
+	wkt = output.GetProjection()
+	output.SetGCPs(gcp_list,wkt)
+	#EPSG4326に投影変換
+	output = gdal.Warp(output_file, output, dstSRS='EPSG:4326',outputType=gdal.GDT_Int16)
+	output.FlushCache()# ディスクに書き出し
+	output = None 	
+
+	hdf_file.close()
