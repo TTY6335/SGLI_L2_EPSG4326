@@ -18,14 +18,14 @@ def get_geomesh(filename,lin_tile,col_tile):
         v_tile_num=18
         h_tile_num=36
         
-        #南極から北極までの総画素数
-        NL_0=86400
-        #赤道における東西方向の総画素数
-        NP_0=172800
 		#タイルでのメッシュの細かさ
         d=180.0/lin_tile/v_tile_num
 
-   		#gdal_translateに与えるGCPのリスト
+		#南極から北極までの総画素数
+        NL_0=int(round(180.0/d))
+        #赤道における東西方向の総画素数
+        NP_0=int(round(180.0/d))
+		#gdal_translateに与えるGCPのリスト
         gcp_list=[]
 		
         for lin in range(0,lin_tile+1,100):
@@ -68,13 +68,26 @@ if __name__ == '__main__':
 	#ファイルを開く
 	output_file=output_file_path+output_filename
 	input_file=input_file_path+input_fine_name
+
+	try:
+		hdf_file = h5py.File(input_file, 'r')
+	except:
+		print('%s IS MISSING.' % input_file)
+		exit(1);
+	
 	hdf_file = h5py.File(input_file, 'r')
-	print(hdf_file['Image_data'][band_name])
-	print(hdf_file['Image_data'][band_name].attrs['Slope'])
-	print(hdf_file['Image_data'][band_name].attrs['Offset'])
-	print(hdf_file['Image_data'][band_name].attrs['Minimum_valid_DN'])
-	print(hdf_file['Image_data'][band_name].attrs['Maximum_valid_DN'])
-	print(hdf_file['Image_data'][band_name].attrs['Error_DN'])
+
+	print('OPEN %s.' % input_file)
+
+	#L2のHDF5ファイルのImage_data以下にデータが入っている。
+	try:
+		Image_var=hdf_file['Image_data'][band_name]
+	except:
+		print('%s IS MISSING.' % band_name)
+		print('SELECT FROM')
+		print(hdf_file['Image_data'].keys())
+		exit(1);
+
 	
 	#L2のHDF5ファイルのImage_data以下にデータが入っている。
 	Image_var=hdf_file['Image_data'][band_name]
