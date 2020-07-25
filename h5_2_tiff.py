@@ -28,8 +28,8 @@ def get_geomesh(filename,lin_tile,col_tile):
    		#gdal_translateに与えるGCPのリスト
         gcp_list=[]
 		
-        for lin in range(0,lin_tile+1,50):
-            for col in range(0,col_tile+1,50):
+        for lin in range(0,lin_tile+1,100):
+            for col in range(0,col_tile+1,100):
                 if(lin==lin_tile):
                     lin=lin-1
                 if(col==col_tile):
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 #ファイルパス	
 	output_file_path="./"
 #ファイル名
-	output_filename=""
+	output_filename="madagascar_test.tif"
 
 	#ファイルを開く
 	output_file=output_file_path+output_filename
@@ -98,13 +98,13 @@ if __name__ == '__main__':
 	#出力
 	dtype = gdal.GDT_UInt16 #others: gdal.GDT_Byte, ...
 	band=1
-	output = gdal.GetDriverByName('GTiff').Create(output_file,lin_size,col_size,band,dtype) # 空の出力ファイル
+	output = gdal.GetDriverByName('GTiff').Create(output_file,lin_size,col_size,band,dtype) 
 	output.GetRasterBand(1).WriteArray(Image_var)
 	wkt = output.GetProjection()
 	output.SetGCPs(gcp_list,wkt)
-	#EPSG4326に投影変換
-	output = gdal.Warp(output_file, output, dstSRS='EPSG:4326',outputType=gdal.GDT_Int16)
-	output.FlushCache()# ディスクに書き出し
+	#与えたGCPを使ってEPSG4326に投影変換
+	output = gdal.Warp(output_file, output, dstSRS='EPSG:4326',tps = True,outputType=gdal.GDT_Int16)
+	output.FlushCache()
 	output = None 	
 
 	hdf_file.close()
