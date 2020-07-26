@@ -1,9 +1,8 @@
 # coding:utf-8
 import numpy as np
-import gdal, ogr, os, osr
+import gdal, ogr, os, osr,sys
 import h5py
 import math
-import os, sys
 
 #タイル番号、画素の位置に対応する緯度経度のメッシュを返す関数
 #4800x4800ピクセルすべての緯度経度を求めても遅い＆gdal_translateでエラーになるので100ピクセル毎に間引き
@@ -46,28 +45,15 @@ def get_geomesh(filename,lin_tile,col_tile):
  
 if __name__ == '__main__':
 
-########################
 #入力するファイルの情報#
-########################
-#ファイルパス
-	input_file_path="../madagascar/"
-#ファイル名
-	input_fine_name="GC1SG1_20200601D01M_T1022_L2SG_RV04Q_2000.h5"
-#バンド名 しきさいのユーザーガイドから調べること
-	band_name='Rs_VN04_AVE'
+	#ファイル名
+	input_file=sys.argv[1]
+	#バンド名
+	band_name=sys.argv[2]
 
+#出力ファイル名
+	output_file=sys.argv[3]
 
-########################
-#出力するファイルの情報#
-########################
-#ファイルパス	
-	output_file_path="./"
-#ファイル名
-	output_filename="madagascar_test.tif"
-
-	#ファイルを開く
-	output_file=output_file_path+output_filename
-	input_file=input_file_path+input_fine_name
 
 	try:
 		hdf_file = h5py.File(input_file, 'r')
