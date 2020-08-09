@@ -10,8 +10,8 @@ import math
 def get_geomesh(filename,lin_tile,col_tile):
 
         #グラニュールIDからタイルのIDを取得する
-        v_tile=int(input_fine_name[21:23])
-        h_tile=int(input_fine_name[23:25])
+        v_tile=int(input_file_name[21:23])
+        h_tile=int(input_file_name[23:25])
     
         #SGLI/L2なら固定だと思う
         v_tile_num=18
@@ -23,7 +23,7 @@ def get_geomesh(filename,lin_tile,col_tile):
 		#南極から北極までの総画素数
         NL_0=int(round(180.0/d))
         #赤道における東西方向の総画素数
-        NP_0=int(round(180.0/d))
+        NP_0=2*NL_0
 		#gdal_translateに与えるGCPのリスト
         gcp_list=[]
 		
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 		print(hdf_file['Image_data'].keys())
 		exit(1);
 
-	
+	input_file_name=str(hdf_file['Global_attributes'].attrs['Product_file_name'][0][2:45])
 	#L2のHDF5ファイルのImage_data以下にデータが入っている。
 	Image_var=hdf_file['Image_data'][band_name]
 	Slope=hdf_file['Image_data'][band_name].attrs['Slope']
@@ -86,23 +86,27 @@ if __name__ == '__main__':
 	Image_var=np.array(Image_var,dtype='uint16')
 	Image_var=np.where(Image_var>Max_DN,np.nan,Image_var)
 
+	#値を求める
+	Value_arr=Slope*Image_var+Offset
+	Value_arr=np.array(Value_arr,dtype='float32')
+
 	#行数
 	lin_size=Image_var.shape[0]
 	#列数
 	col_size=Image_var.shape[1]
 
 	#GCPのリストをつくる
-	gcp_list=get_geomesh(input_fine_name,lin_size,col_size)
+	gcp_list=get_geomesh(input_file_name,lin_size,col_size)
 
 	#出力
-	dtype = gdal.GDT_UInt16 #others: gdal.GDT_Byte, ...
+	dtype = gdal.GDT_Float32
 	band=1
 	output = gdal.GetDriverByName('GTiff').Create(output_file,lin_size,col_size,band,dtype) 
-	output.GetRasterBand(1).WriteArray(Image_var)
+	output.GetRasterBand(1).WriteArray(Value_arr)
 	wkt = output.GetProjection()
 	output.SetGCPs(gcp_list,wkt)
 	#与えたGCPを使ってEPSG4326に投影変換
-	output = gdal.Warp(output_file, output, dstSRS='EPSG:4326',tps = True,outputType=gdal.GDT_Int16)
+	output = gdal.Warp(output_file, output, dstSRS='EPSG:4326',tps = True,outputType=dtype)
 	output.FlushCache()
 	output = None 	
 
