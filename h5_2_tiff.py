@@ -27,8 +27,8 @@ def get_geomesh(filename,lin_tile,col_tile):
 		#gdal_translateに与えるGCPのリスト
         gcp_list=[]
 		
-        for lin in range(0,lin_tile+1,100):
-            for col in range(0,col_tile+1,100):
+        for lin in range(0,lin_tile+1,50):
+            for col in range(0,col_tile+1,50):
                 if(lin==lin_tile):
                     lin=lin-1
                 if(col==col_tile):
@@ -106,7 +106,7 @@ if __name__ == '__main__':
 	wkt = output.GetProjection()
 	output.SetGCPs(gcp_list,wkt)
 	#与えたGCPを使ってEPSG4326に投影変換
-	output = gdal.Warp(output_file, output, dstSRS='EPSG:4326',tps = True,outputType=dtype)
+	output = gdal.Warp(output_file, output, dstSRS='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',tps = True,outputType=dtype)
 	output.FlushCache()
 	output = None 	
 
