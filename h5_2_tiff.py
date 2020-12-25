@@ -1,47 +1,56 @@
 # coding:utf-8
 import numpy as np
 import gdal, ogr, os, osr,sys
+import gdalconst
 import h5py
 import math
 
 #タイル番号、画素の位置に対応する緯度経度のメッシュを返す関数
-#4800x4800ピクセルすべての緯度経度を求めても遅い＆gdal_translateでエラーになるので100ピクセル毎に間引き
+#4800x4800ピクセルすべての緯度経度を求めても遅い＆gdal_translateでエラーになるので間引き
 #四隅が欲しいのでgcpの配列の大きさは縦横+1してある
-def get_geomesh(filename,lin_tile,col_tile):
+def get_geomesh(filename,lintile,coltile):
 
-        #グラニュールIDからタイルのIDを取得する
-        v_tile=int(input_file_name[21:23])
-        h_tile=int(input_file_name[23:25])
+		#グラニュールIDからタイル番号を取得する
+		#縦方向
+		vtile=int(input_file_name[21:23])
+		#横方向
+		htile=int(input_file_name[23:25])
     
-        #SGLI/L2なら固定だと思う
-        v_tile_num=18
-        h_tile_num=36
-        
-		#タイルでのメッシュの細かさ
-        d=180.0/lin_tile/v_tile_num
-
-		#南極から北極までの総画素数
-        NL_0=int(round(180.0/d))
-        #赤道における東西方向の総画素数
-        NP_0=2*NL_0
-		#gdal_translateに与えるGCPのリスト
-        gcp_list=[]
+		#SGLI/L2であれば固定
+		#縦方向の総タイル数
+		vtilenum=18
+		#横方向の総タイル数
+		htilenum=36
 		
-        for lin in range(0,lin_tile+1,50):
-            for col in range(0,col_tile+1,50):
-                if(lin==lin_tile):
-                    lin=lin-1
-                if(col==col_tile):
-                    col=col-1
-                lin_total=lin+v_tile*lin_tile
-                col_total=col+h_tile*col_tile
-                lat=90.0-(lin_total+0.5)*d
-                NP_i=NP_0*math.cos(math.radians(lat))
-                lon=360.0*(col_total+0.5-NP_0/2)/NP_i
-                gcp=gdal.GCP(round(lon,6),round(lat,6),0,col+0.5,lin+0.5)
-                gcp_list.append(gcp)
+		#緯度方向(dlin)、経度方向(dcol)
+		#それぞれの1画素の大きさ
+		#d=dlin=dcol
+		d=180.0/lintile/vtilenum
+		
+		#求めたりタイル番号の左上画素の中心の緯度[deg]は、
+		#1タイルあたりの角度が10[deg]であることから、
+		lat0=90.0-vtile*10-d/2
+		
+		#求めたいタイル番号の左上画素の中心の経度[deg]は、
+		#1タイルあたりの角度が10[deg]であることから、
+		lon0=-180.0+htile*10+d/2
 
-        return gcp_list
+		#gdal_translateに与えるGCPのリスト
+		gcp_list=[]
+		
+		for lin in range(0,lintile+1,100):
+			lat=lat0-lin*d
+			r=np.cos(np.radians(lat))
+			for col in range(0,coltile+1,100):
+				if(lin==lintile):
+					lin=lin-1
+				if(col==coltile):
+					col=col-1
+				lon=(lon0+col*d)/r
+				gcp=gdal.GCP(round(lon,6),round(lat,6),0,col+0.5,lin+0.5)
+				gcp_list.append(gcp)
+
+		return gcp_list
  
 if __name__ == '__main__':
 
@@ -106,7 +115,7 @@ if __name__ == '__main__':
 	wkt = output.GetProjection()
 	output.SetGCPs(gcp_list,wkt)
 	#与えたGCPを使ってEPSG4326に投影変換
-	output = gdal.Warp(output_file, output, dstSRS='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',tps = True,outputType=dtype)
+	output = gdal.Warp(output_file, output, dstSRS='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',srcNodata=np.nan,dstNodata=-9999,dstAlpha=True,tps = True, outputType=dtype,multithread=True,resampleAlg=gdalconst.GRIORA_NearestNeighbour)
 	output.FlushCache()
 	output = None 	
 
