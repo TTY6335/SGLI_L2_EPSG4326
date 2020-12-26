@@ -10,47 +10,47 @@ import math
 #四隅が欲しいのでgcpの配列の大きさは縦横+1してある
 def get_geomesh(filename,lintile,coltile):
 
-		#グラニュールIDからタイル番号を取得する
-		#縦方向
-		vtile=int(input_file_name[21:23])
-		#横方向
-		htile=int(input_file_name[23:25])
-    
-		#SGLI/L2であれば固定
-		#縦方向の総タイル数
-		vtilenum=18
-		#横方向の総タイル数
-		htilenum=36
+	#グラニュールIDからタイル番号を取得する
+	#縦方向
+	vtile=int(input_file_name[21:23])
+	#横方向
+	htile=int(input_file_name[23:25])
+   
+	#SGLI/L2であれば固定
+	#縦方向の総タイル数
+	vtilenum=18
+	#横方向の総タイル数
+	htilenum=36
 		
-		#緯度方向(dlin)、経度方向(dcol)
-		#それぞれの1画素の大きさ
-		#d=dlin=dcol
-		d=180.0/lintile/vtilenum
+	#緯度方向(dlin)、経度方向(dcol)
+	#それぞれの1画素の大きさ
+	#d=dlin=dcol
+	d=180.0/lintile/vtilenum
 		
-		#求めたりタイル番号の左上画素の中心の緯度[deg]は、
-		#1タイルあたりの角度が10[deg]であることから、
-		lat0=90.0-vtile*10-d/2
-		
-		#求めたいタイル番号の左上画素の中心の経度[deg]は、
-		#1タイルあたりの角度が10[deg]であることから、
-		lon0=-180.0+htile*10+d/2
+	#求めたりタイル番号の左上画素の中心の緯度[deg]は、
+	#1タイルあたりの角度が10[deg]であることから、
+	lat0=90.0-vtile*10-d/2
 
-		#gdal_translateに与えるGCPのリスト
-		gcp_list=[]
-		
-		for lin in range(0,lintile+1,50):
-			lat=lat0-lin*d
-			r=np.cos(np.radians(lat))
-			for col in range(0,coltile+1,50):
-				if(lin==lintile):
-					lin=lin-1
-				if(col==coltile):
-					col=col-1
-				lon=(lon0+col*d)/r
-				gcp=gdal.GCP(round(lon,6),round(lat,6),0,col+0.5,lin+0.5)
-				gcp_list.append(gcp)
+	#求めたいタイル番号の左上画素の中心の経度[deg]は、
+	#1タイルあたりの角度が10[deg]であることから、
+	lon0=-180.0+htile*10+d/2
 
-		return gcp_list
+	#gdal_translateに与えるGCPのリスト
+	gcp_list=[]
+
+	for lin in range(0,lintile+1,50):
+		lat=lat0-lin*d
+		r=np.cos(np.radians(lat))
+		for col in range(0,coltile+1,50):
+			if(lin==lintile):
+				lin=lin-1
+			if(col==coltile):
+				col=col-1
+			lon=(lon0+col*d)/r
+			gcp=gdal.GCP(round(lon,6),round(lat,6),0,col+0.5,lin+0.5)
+			gcp_list.append(gcp)
+
+	return gcp_list
  
 if __name__ == '__main__':
 
