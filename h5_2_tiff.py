@@ -38,10 +38,10 @@ def get_geomesh(filename,lintile,coltile):
 		#gdal_translateに与えるGCPのリスト
 		gcp_list=[]
 		
-		for lin in range(0,lintile+1,100):
+		for lin in range(0,lintile+1,50):
 			lat=lat0-lin*d
 			r=np.cos(np.radians(lat))
-			for col in range(0,coltile+1,100):
+			for col in range(0,coltile+1,50):
 				if(lin==lintile):
 					lin=lin-1
 				if(col==coltile):
@@ -115,7 +115,7 @@ if __name__ == '__main__':
 	wkt = output.GetProjection()
 	output.SetGCPs(gcp_list,wkt)
 	#与えたGCPを使ってEPSG4326に投影変換
-	output = gdal.Warp(output_file, output, dstSRS='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',srcNodata=np.nan,dstNodata=-9999,dstAlpha=True,tps = True, outputType=dtype,multithread=True,resampleAlg=gdalconst.GRIORA_NearestNeighbour)
+	output = gdal.Warp(output_file, output, dstSRS='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',srcNodata=np.nan,dstNodata=np.nan,tps = True, outputType=dtype,multithread=True,resampleAlg=gdalconst.GRIORA_NearestNeighbour)
 	output.FlushCache()
 	output = None 	
 
