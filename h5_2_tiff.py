@@ -38,10 +38,10 @@ def get_geomesh(filename,lintile,coltile):
 	#gdal_translateに与えるGCPのリスト
 	gcp_list=[]
 
-	for lin in range(0,lintile+1,50):
+	for lin in range(0,lintile+1,100):
 		lat=lat0-lin*d
 		r=np.cos(np.radians(lat))
-		for col in range(0,coltile+1,50):
+		for col in range(0,coltile+1,100):
 			if(lin==lintile):
 				lin=lin-1
 			if(col==coltile):
