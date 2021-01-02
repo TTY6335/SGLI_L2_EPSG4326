@@ -115,7 +115,15 @@ if __name__ == '__main__':
 	wkt = output.GetProjection()
 	output.SetGCPs(gcp_list,wkt)
 	#与えたGCPを使ってEPSG4326に投影変換
-	output = gdal.Warp(output_file, output, dstSRS='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',srcNodata=np.nan,dstNodata=np.nan,tps = True, outputType=dtype,multithread=True,resampleAlg=gdalconst.GRIORA_NearestNeighbour)
+	output = gdal.Warp(output_file, \
+			output, \
+			dstSRS='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs',\
+			srcNodata=np.nan,\
+			dstNodata=np.nan,\
+			tps = True, \
+			outputType=dtype,\
+			multithread=True,\
+			resampleAlg=gdalconst.GRIORA_NearestNeighbour)
 	output.FlushCache()
 	output = None 	
 
