@@ -1,5 +1,6 @@
 # coding:utf-8
 import numpy as np
+#import gdal, ogr, os, osr,sys
 import gdal,sys
 import gdalconst
 
