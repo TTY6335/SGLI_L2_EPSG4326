@@ -1,8 +1,9 @@
 # coding:utf-8
 import numpy as np
-#import gdal, ogr, os, osr,sys
 import gdal,sys
 import gdalconst
+
+__author__ = "TTY6335 https://github.com/TTY6335"
 
 #タイル番号、画素の位置に対応する緯度経度のメッシュを返す関数
 #4800x4800ピクセルすべての緯度経度を求めても遅い＆gdal_translateでエラーになるので間引き
