@@ -8,7 +8,7 @@ __author__ = "TTY6335 https://github.com/TTY6335"
 #タイル番号、画素の位置に対応する緯度経度のメッシュを返す関数
 #4800x4800ピクセルすべての緯度経度を求めても遅い＆gdal_translateでエラーになるので間引き
 #四隅が欲しいのでgcpの配列の大きさは縦横+1してある
-def get_geomesh(filename,lintile,coltile):
+def get_L2_geomesh(filename,lintile,coltile):
 
 	#グラニュールIDからタイル番号を取得する
 	#縦方向
@@ -52,6 +52,35 @@ def get_geomesh(filename,lintile,coltile):
 
 	return gcp_list
  
+def get_L1_geomesh(lat_array,lon_array):
+	#GCPのリストを作る
+	gcp_list=[]
+	#東経180度西経-180度の線を越えていないかチェック
+	top_left_lon=lon_array[0][0]
+	top_right_lon=lon_array[0][-1]
+	bottom_left_lon=lon_array[-1][0]
+	bottom_right_lon=lon_array[-1][-1]
+	
+	#東経180度西経-180度の線をまたぐ場合
+	if((top_left_lon>top_right_lon) or\
+		(top_left_lon>bottom_right_lon) or\
+		(bottom_left_lon>top_right_lon) or\
+		(bottom_left_lon>bottom_right_lon)\
+		):
+		lon_array=np.where(lon_array<0,lon_array+360,lon_array)
+		for column in range(0,lat_array.shape[0],20):
+			for row in range(0,lat_array.shape[1],20): 
+				gcp=gdal.GCP(lon_array[column][row],lat_array[column][row],0,row*10,column*10)
+				gcp_list.append(gcp)
+	#東経180度西経-180度の線をまたがない場合
+	else:	
+		for column in range(0,lat_array.shape[0],20):
+			for row in range(0,lat_array.shape[1],20): 
+				gcp=gdal.GCP(lon_array[column][row],lat_array[column][row],0,row*10,column*10)
+				gcp_list.append(gcp)
+
+	return gcp_list
+
 if __name__ == '__main__':
 
 #入力するファイルの情報#
@@ -71,6 +100,7 @@ if __name__ == '__main__':
 	
 	hdf_file = gdal.Open(input_file, gdal.GA_ReadOnly)
 	dataset_list=hdf_file.GetSubDatasets()
+	print(dataset_list)
 
 	print('OPEN %s.' % input_file)
 	## Open HDF file
@@ -79,6 +109,10 @@ if __name__ == '__main__':
 	#プロダクト名を探す
 	product_name='//Image_data/'+band_name
 	for dataset_index in range(len(dataset_list)):
+		if('//Geometry_data/Latitude' in dataset_list[dataset_index][0]):
+			lat_index=dataset_index
+		if('//Geometry_data/Longitude' in dataset_list[dataset_index][0]):
+			lon_index=dataset_index
 		if(product_name in dataset_list[dataset_index][0]):
 			break;
 
@@ -90,7 +124,7 @@ if __name__ == '__main__':
 				print(dataset[0].split('/')[-1])
 		exit(1);
 
-#	print(gdal.Open(hdf_file.GetSubDatasets(),gdal.GA_ReadOnly))
+
 	Image_var=gdal.Open(hdf_file.GetSubDatasets()[dataset_index][0], gdal.GA_ReadOnly).ReadAsArray()
 
 	#Get Sole, Offset,Minimum_valid_DN, Maximum_valid_DN
@@ -116,13 +150,21 @@ if __name__ == '__main__':
 	Value_arr=Slope*Image_var+Offset
 	Value_arr=np.array(Value_arr,dtype='float32')
 
-	#行数
-	lin_size=Image_var.shape[0]
 	#列数
-	col_size=Image_var.shape[1]
+	lin_size=Image_var.shape[1]
+	#行数
+	col_size=Image_var.shape[0]
 
 	#GCPのリストをつくる
-	gcp_list=get_geomesh(hdf_filename,lin_size,col_size)
+	try:
+		#L1の場合
+		lat_arr=gdal.Open(hdf_file.GetSubDatasets()[lat_index][0], gdal.GA_ReadOnly).ReadAsArray()
+		lon_arr=gdal.Open(hdf_file.GetSubDatasets()[lon_index][0], gdal.GA_ReadOnly).ReadAsArray()
+		gcp_list=get_L1_geomesh(lat_arr,lon_arr)
+
+	except:
+		#L2の場合
+		gcp_list=get_L2_geomesh(hdf_filename,lin_size,col_size)
 
 	#出力
 	dtype = gdal.GDT_Float32
@@ -143,7 +185,7 @@ if __name__ == '__main__':
 			resampleAlg=gdalconst.GRIORA_NearestNeighbour)
 	output.FlushCache()
 	output = None 	
-	print('CREATE'+output_file)
+	print('CREATE '+output_file)
 
 #CLOSE HDF FILE
 	Image_var=None	
