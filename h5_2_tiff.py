@@ -100,7 +100,6 @@ if __name__ == '__main__':
 	
 	hdf_file = gdal.Open(input_file, gdal.GA_ReadOnly)
 	dataset_list=hdf_file.GetSubDatasets()
-	print(dataset_list)
 
 	print('OPEN %s.' % input_file)
 	## Open HDF file
